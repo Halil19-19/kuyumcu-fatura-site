@@ -56,6 +56,18 @@
       <input type="email" id="giris-eposta" placeholder="E-posta">
       <input type="password" id="giris-sifre" placeholder="Şifre">
       <button onclick="girisYap()">🔓 Giriş Yap</button>
+      <button class="secondary" onclick="sifremiUnuttumGoster()">🔑 Şifremi Unuttum</button>
+    </div>
+
+    <div id="sifirla-sekme" class="card hidden">
+      <p style="color:#666; font-size:13px; margin-bottom:12px;">Kimliğini doğrulamak için kayıtlı e-postanı ve kuyumcunun VKN'sini gir, yeni bir şifre belirle.</p>
+      <div id="sifirla-hata" class="error hidden"></div>
+      <div id="sifirla-basari" class="success hidden"></div>
+      <input type="email" id="sifirla-eposta" placeholder="E-posta">
+      <input type="text" id="sifirla-vkn" placeholder="Kuyumcu VKN">
+      <input type="password" id="sifirla-yeni-sifre" placeholder="Yeni Şifre">
+      <button onclick="sifreSifirla()">✅ Şifreyi Güncelle</button>
+      <button class="secondary" onclick="sifremiUnuttumGizle()">◀ Geri Dön</button>
     </div>
 
     <div id="kayit-sekme" class="card hidden">
@@ -95,6 +107,38 @@ async function api(yol, secenekler = {}) {
     throw new Error(hata);
   }
   return r.json();
+}
+
+function sifremiUnuttumGoster() {
+  document.getElementById('giris-sekme').classList.add('hidden');
+  document.getElementById('sifirla-sekme').classList.remove('hidden');
+}
+
+function sifremiUnuttumGizle() {
+  document.getElementById('sifirla-sekme').classList.add('hidden');
+  document.getElementById('giris-sekme').classList.remove('hidden');
+}
+
+async function sifreSifirla() {
+  const hataEl = document.getElementById('sifirla-hata');
+  const basariEl = document.getElementById('sifirla-basari');
+  hataEl.classList.add('hidden');
+  basariEl.classList.add('hidden');
+  try {
+    await api('/auth/sifre-sifirla', {
+      method: 'POST',
+      body: JSON.stringify({
+        eposta: document.getElementById('sifirla-eposta').value,
+        kuyumcu_vkn: document.getElementById('sifirla-vkn').value,
+        yeni_sifre: document.getElementById('sifirla-yeni-sifre').value,
+      }),
+    });
+    basariEl.textContent = '✅ Şifren güncellendi, şimdi giriş yapabilirsin.';
+    basariEl.classList.remove('hidden');
+  } catch (e) {
+    hataEl.textContent = '❌ E-posta veya VKN eşleşmedi.';
+    hataEl.classList.remove('hidden');
+  }
 }
 
 async function girisYap() {
