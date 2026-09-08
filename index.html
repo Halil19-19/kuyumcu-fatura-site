@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sevgin Faturam</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
+  body { background: #f4f5f7; color: #111; }
+  .banner { background: #000; color: white; padding: 24px; text-align: center; }
+  .banner h1 { font-size: 24px; margin-bottom: 4px; }
+  .banner p { font-size: 13px; color: #ccc; }
+  .container { max-width: 480px; margin: 0 auto; padding: 20px; }
+  .card { background: white; border: 1px solid #ddd; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  input, select { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+  button { width: 100%; padding: 12px; background: #000; color: white; border: none; border-radius: 6px; font-weight: 700; font-size: 14px; cursor: pointer; margin-bottom: 8px; }
+  button:hover { background: #333; }
+  button.secondary { background: #eee; color: #333; }
+  .tabs { display: flex; margin-bottom: 12px; }
+  .tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; background: #eee; border-radius: 6px 6px 0 0; font-weight: 600; }
+  .tab.active { background: #000; color: white; }
+  .hidden { display: none; }
+  .error { color: #dc2626; font-size: 13px; margin-bottom: 10px; }
+  .success { color: #16a34a; font-size: 13px; margin-bottom: 10px; }
+  .nav { display: flex; overflow-x: auto; background: #000; }
+  .nav button { width: auto; flex: 1; background: #000; border-radius: 0; padding: 14px 8px; font-size: 12px; white-space: nowrap; }
+  .nav button.active { background: #333; border-bottom: 3px solid white; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px; text-align: left; border-bottom: 1px solid #eee; }
+  th { background: #000; color: white; }
+  .kart { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+  .kart b { font-size: 15px; }
+  .top { color: #16a34a; font-weight: 700; }
+  .flop { color: #dc2626; font-weight: 700; }
+  h2 { margin-bottom: 12px; font-size: 18px; }
+  .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .top-bar button { width: auto; padding: 8px 14px; font-size: 12px; }
+  #app { display: none; }
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="banner">
+    <h1>💎 Sevgin Faturam</h1>
+    <p>Kuyumcu Otomatik Fatura & MASAK Uyum Sistemi</p>
+  </div>
+  <div class="container">
+    <div class="tabs">
+      <div class="tab active" onclick="sekmeSec('giris')">🔓 Giriş Yap</div>
+      <div class="tab" onclick="sekmeSec('kayit')">✨ Kayıt Ol</div>
+    </div>
+
+    <div id="giris-sekme" class="card">
+      <div id="giris-hata" class="error hidden"></div>
+      <input type="email" id="giris-eposta" placeholder="E-posta">
+      <input type="password" id="giris-sifre" placeholder="Şifre">
+      <button onclick="girisYap()">🔓 Giriş Yap</button>
+    </div>
+
+    <div id="kayit-sekme" class="card hidden">
+      <div id="kayit-hata" class="error hidden"></div>
+      <input type="text" id="kayit-unvan" placeholder="Kuyumcu Unvanı">
+      <input type="text" id="kayit-vkn" placeholder="VKN">
+      <input type="text" id="kayit-ad" placeholder="Adınız Soyadınız">
+      <input type="email" id="kayit-eposta" placeholder="E-posta">
+      <input type="password" id="kayit-sifre" placeholder="Şifre">
+      <button onclick="kayitOl()">✨ Hesap Oluştur</button>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="nav" id="nav"></div>
+  <div class="container" id="icerik"></div>
+</div>
+
+<script>
+const API = "https://kuyumcu-fatura-production.up.railway.app";
+let TOKEN = localStorage.getItem("token") || null;
+
+function sekmeSec(hangi) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('giris-sekme').classList.toggle('hidden', hangi !== 'giris');
+  document.getElementById('kayit-sekme').classList.toggle('hidden', hangi !== 'kayit');
+}
+
+async function api(yol, secenekler = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
+  const r = await fetch(API + yol, { ...secenekler, headers: { ...headers, ...(secenekler.headers || {}) } });
+  if (!r.ok) {
+    const hata = await r.text();
+    throw new Error(hata);
+  }
+  return r.json();
+}
+
+async function girisYap() {
+  const hataEl = document.getElementById('giris-hata');
+  hataEl.classList.add('hidden');
+  try {
+    const veri = await api('/auth/giris', {
+      method: 'POST',
+      body: JSON.stringify({
+        eposta: document.getElementById('giris-eposta').value,
+        sifre: document.getElementById('giris-sifre').value,
+      }),
+    });
+    TOKEN = veri.token;
+    localStorage.setItem('token', TOKEN);
+    girisSonrasi();
+  } catch (e) {
+    hataEl.textContent = '❌ E-posta veya şifre hatalı';
+    hataEl.classList.remove('hidden');
+  }
+}
+
+async function kayitOl() {
+  const hataEl = document.getElementById('kayit-hata');
+  hataEl.classList.add('hidden');
+  try {
+    const veri = await api('/auth/kayit', {
+      method: 'POST',
+      body: JSON.stringify({
+        eposta: document.getElementById('kayit-eposta').value,
+        sifre: document.getElementById('kayit-sifre').value,
+        ad_soyad: document.getElementById('kayit-ad').value,
+        kuyumcu_unvan: document.getElementById('kayit-unvan').value,
+        kuyumcu_vkn: document.getElementById('kayit-vkn').value,
+      }),
+    });
+    TOKEN = veri.token;
+    localStorage.setItem('token', TOKEN);
+    girisSonrasi();
+  } catch (e) {
+    hataEl.textContent = '❌ Kayıt başarısız - e-posta zaten kayıtlı olabilir';
+    hataEl.classList.remove('hidden');
+  }
+}
+
+function cikisYap() {
+  TOKEN = null;
+  localStorage.removeItem('token');
+  document.getElementById('login').style.display = 'block';
+  document.getElementById('app').style.display = 'none';
+}
+
+function girisSonrasi() {
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  navOlustur();
+  sayfaGoster('anasayfa');
+}
+
+const SAYFALAR = {
+  anasayfa: '🏠 Ana Sayfa',
+  piyasa: '📡 Piyasa',
+  hareketler: '💳 Hesap Hareketleri',
+  ayarlar: '⚙️ Ayarlar',
+};
+
+function navOlustur() {
+  const nav = document.getElementById('nav');
+  nav.innerHTML = '';
+  Object.entries(SAYFALAR).forEach(([id, etiket]) => {
+    const b = document.createElement('button');
+    b.textContent = etiket;
+    b.onclick = () => sayfaGoster(id);
+    b.id = 'nav-' + id;
+    nav.appendChild(b);
+  });
+  const cikis = document.createElement('button');
+  cikis.textContent = '🚪 Çıkış';
+  cikis.onclick = cikisYap;
+  nav.appendChild(cikis);
+}
+
+async function sayfaGoster(id) {
+  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+  const aktifBtn = document.getElementById('nav-' + id);
+  if (aktifBtn) aktifBtn.classList.add('active');
+
+  const icerik = document.getElementById('icerik');
+  icerik.innerHTML = '<p>Yükleniyor...</p>';
+
+  if (id === 'anasayfa') {
+    try {
+      const ben = await api('/auth/ben');
+      const profil = await api('/ayarlar/profil');
+      icerik.innerHTML = `
+        <div class="card">
+          <h2>👋 Hoşgeldiniz, ${ben.ad_soyad || ben.eposta}!</h2>
+          <p><b>🏪 ${profil?.unvan || '—'}</b></p>
+          <p style="color:#666">VKN: ${profil?.vkn || '—'}</p>
+        </div>`;
+    } catch (e) {
+      icerik.innerHTML = '<div class="card error">Bilgi alınamadı</div>';
+    }
+  }
+
+  if (id === 'piyasa') {
+    try {
+      const veri = await api('/altin/piyasa-tablosu');
+      if (!veri.basarili) {
+        icerik.innerHTML = `<div class="card"><p>⏸️ Canlı piyasa henüz bağlı değil: ${veri.hata || ''}</p></div>`;
+        return;
+      }
+      let html = '<div class="top-bar"><h2>📡 Canlı Piyasa</h2><button onclick="sayfaGoster(\'piyasa\')">🔄</button></div>';
+      html += '<div class="card"><h2>💱 Döviz</h2>';
+      veri.doviz.forEach(d => {
+        html += `<div class="kart"><span>${d.goruntu_adi}</span><b>${d.sell.toLocaleString('tr-TR', {minimumFractionDigits:2})} TL</b></div>`;
+      });
+      html += '</div><div class="card"><h2>🥇 Altın</h2>';
+      veri.altin.forEach(a => {
+        html += `<div class="kart"><span>${a.goruntu_adi}</span><b>${a.sell.toLocaleString('tr-TR', {minimumFractionDigits:2})} TL</b></div>`;
+      });
+      html += '</div>';
+      icerik.innerHTML = html;
+    } catch (e) {
+      icerik.innerHTML = '<div class="card error">Piyasa verisi alınamadı</div>';
+    }
+  }
+
+  if (id === 'hareketler') {
+    try {
+      const islemler = await api('/islemler');
+      let html = '<div class="top-bar"><h2>💳 Hesap Hareketleri</h2><button onclick="sayfaGoster(\'hareketler\')">🔄</button></div><div class="card"><table><tr><th>Yön</th><th>Tarih</th><th>Açıklama</th><th>Tutar</th></tr>';
+      islemler.forEach(i => {
+        const yon = i.yon === 'gelen' ? '⬇️' : '⬆️';
+        const renk = i.yon === 'gelen' ? 'top' : 'flop';
+        html += `<tr><td>${yon}</td><td>${(i.islem_tarihi||'').slice(0,10)}</td><td>${i.aciklama_ham||''}</td><td class="${renk}">${i.tutar.toLocaleString('tr-TR')} TL</td></tr>`;
+      });
+      html += '</table></div>';
+      icerik.innerHTML = html;
+    } catch (e) {
+      icerik.innerHTML = '<div class="card error">İşlemler alınamadı</div>';
+    }
+  }
+
+  if (id === 'ayarlar') {
+    try {
+      const profil = await api('/ayarlar/profil');
+      icerik.innerHTML = `
+        <div class="card">
+          <h2>🏪 Kuyumcu Profili</h2>
+          <input id="ay-unvan" placeholder="Unvan" value="${profil?.unvan || ''}">
+          <input id="ay-vkn" placeholder="VKN" value="${profil?.vkn || ''}">
+          <input id="ay-adres" placeholder="Adres" value="${profil?.adres || ''}">
+          <input id="ay-telefon" placeholder="Telefon" value="${profil?.telefon || ''}">
+          <button onclick="profilKaydet()">💾 Kaydet</button>
+          <div id="ay-sonuc"></div>
+        </div>`;
+    } catch (e) {
+      icerik.innerHTML = '<div class="card error">Profil alınamadı</div>';
+    }
+  }
+}
+
+async function profilKaydet() {
+  try {
+    await api('/ayarlar/profil', {
+      method: 'PUT',
+      body: JSON.stringify({
+        unvan: document.getElementById('ay-unvan').value,
+        vkn: document.getElementById('ay-vkn').value,
+        adres: document.getElementById('ay-adres').value,
+        telefon: document.getElementById('ay-telefon').value,
+      }),
+    });
+    document.getElementById('ay-sonuc').innerHTML = '<p class="success">✅ Kaydedildi</p>';
+  } catch (e) {
+    document.getElementById('ay-sonuc').innerHTML = '<p class="error">❌ Kaydedilemedi</p>';
+  }
+}
+
+// Sayfa açılışında token varsa direkt giriş yapmış say
+if (TOKEN) {
+  girisSonrasi();
+}
+</script>
+</body>
+</html>
